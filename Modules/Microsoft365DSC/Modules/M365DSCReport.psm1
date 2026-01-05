@@ -390,6 +390,10 @@ function New-M365DSCConfigurationToHTML
         [Parameter()]
         [switch]
         $SortProperties
+
+        [Parameter()]
+        [System.String]
+        $CSSFragmentFile
     )
 
     # Always sort properties by default
@@ -404,7 +408,20 @@ function New-M365DSCConfigurationToHTML
     $fullHTML = '<!DOCTYPE html>'
     $fullHTML += '<html>'
     $fullHTML += '<head><meta charset="utf-8"><title>Configuration Report</title>'
-    $fullHTML += $Script:ReportCSS
+
+    if ([System.String]::IsNullOrEmpty($CSSFragmentFile))
+    {
+        Write-Verbose "Using default CSS as no optional file specified"
+        $fullHTML += $Script:ReportCSS
+    } elseif (Test-Path $CSSFragmentFile)
+    {
+        Write-Verbose "Adding $CSSFragmentFile as CSS Styles"
+        $fullHTML += Get-Content -Path $CSSFragmentFile
+    } else
+    {
+        Write-Verbose "$CSSFramgentFile cannot be found, using default CSS"
+         $fullHTML += $Script:ReportCSS
+    }
     $fullHTML += '</head>'
     $fullHTML += '<body>'
     $fullHTML += "<div class='report-container'>"
@@ -1011,7 +1028,7 @@ The path to the exported DSC configuration that the report should be created for
 The output path of the report.
 
 .Example
-New-M365DSCReportFromConfiguration -Type 'HTML' -ConfigurationPath 'C:\DSC\ConfigName.ps1' -OutputPath 'C:\Dsc\M365Report.html'
+New-M365DSCReportFromConfiguration -Type 'HTML' -ConfigurationPath 'C:\DSC\ConfigName.ps1' -OutputPath 'C:\Dsc\M365Report.html' -CSSFragmentFile 'C:\Templates\CompanyM365DSC.css'
 
 .Example
 New-M365DSCReportFromConfiguration -Type 'Excel' -ConfigurationPath 'C:\DSC\ConfigName.ps1' -OutputPath 'C:\Dsc\M365Report.xlsx'
@@ -1054,6 +1071,19 @@ function New-M365DSCReportFromConfiguration
             $paramDictionary.Add("Delimiter", $delimiterParam)
             $PSBoundParameters.Add("Delimiter", $delimiterParam.Value)
         }
+        # CSSFragmentFile option
+        if ($Type -eq 'HTML')
+        {
+            $CSSFragmentFileAttr = [System.Management.Automation.ParameterAttribute]::New()
+            $CSSFragmentFile.Mandatory = $false
+            $attributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+            $attributeCollection.Add($delimiterAttr)
+            $CSSFragmentFileParam = [System.Management.Automation.RuntimeDefinedParameter]::New("CSSFragmentFile", [System.String], $attributeCollection)
+            $CSSFragmentFileParam.Value = '' # default value, comma makes a mess when importing a CSV-file in Excel
+            $paramDictionary.Add("CSSFragmentFile", $CSSFragmentFileParam)
+            $PSBoundParameters.Add("CSSFragmentFile", $CSSFragmentFileParam.Value)
+        }
+
         return $paramDictionary
     }
 
@@ -1062,6 +1092,10 @@ function New-M365DSCReportFromConfiguration
         if ($PSBoundParameters.ContainsKey('Delimiter'))
         {
             $Delimiter = $PSBoundParameters.Delimiter
+        }
+          if ($PSBoundParameters.ContainsKey('CSSFragmentFile'))
+        {
+            $CSSFragmentFile = $PSBoundParameters.CSSFragmentFile
         }
     }
     process # required with DynamicParam
@@ -1101,7 +1135,7 @@ function New-M365DSCReportFromConfiguration
                 {
                     $template = Get-Item $ConfigurationPath
                     $templateName = $Template.Name.Split('.')[0]
-                    New-M365DSCConfigurationToHTML -ParsedContent $parsedContent -OutputPath $OutputPath -TemplateName $templateName
+                    New-M365DSCConfigurationToHTML -ParsedContent $parsedContent -OutputPath $OutputPath -TemplateName $templateName -CSSFragmentFile $CSSFragmentFile
                 }
                 'JSON'
                 {

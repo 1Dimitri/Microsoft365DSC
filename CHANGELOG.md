@@ -4,6 +4,8 @@
 
 * EXOPlace
   * Fixes an issue with the export where it was trying to export RoomList.
+* New-M365DSCConfigurationToHTML
+  * Add parameter CSSFragmentFile which allows to override the default provided inline CSS
 
 # 1.25.1203.2
 
